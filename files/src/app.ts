@@ -6,6 +6,8 @@ class App {
   constructor() {
     this.config = new ConfigService();
   }
+  init() {}
 }
 
 const app = new App();
+app.init();
