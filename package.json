@@ -1,0 +1,29 @@
+{
+  "name": "@artegoser/create-ts-prod",
+  "version": "1.0.0",
+  "description": "Boilerplate for TypeScript projects",
+  "main": "index.js",
+  "bin": {
+    "create-ts-prod": "index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/artegoser/create-ts-prod.git"
+  },
+  "keywords": [
+    "boilerplate",
+    "typescript"
+  ],
+  "author": "artegoser",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/artegoser/create-ts-prod/issues"
+  },
+  "homepage": "https://github.com/artegoser/create-ts-prod#readme",
+  "dependencies": {
+    "cross-spawn": "^7.0.3"
+  }
+}
