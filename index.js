@@ -14,43 +14,89 @@ const config = {
   },
 };
 
-const spawn = require("cross-spawn");
 const fs = require("fs");
 const path = require("path");
+const { prompt } = require("enquirer");
+const Listr = require("listr");
 
-//check if package.json exists
-console.log("Check if package.json exists");
-if (!fs.existsSync("package.json")) {
-  console.log("package.json does not exist, creating...");
-  spawn.sync("npm", ["init", "-y"], { stdio: "inherit" });
-} else {
-  console.log("package.json exists, skipping...");
+async function run() {
+  const { execa } = await import("execa");
+
+  const resp = await prompt([
+    {
+      type: "confirm",
+      name: "prisma",
+      message: "Do you want to install Prisma?",
+    },
+  ]);
+
+  let tasks = new Listr([
+    {
+      title: "Check if package.json exists",
+      task: async (_, task) => {
+        if (!fs.existsSync("package.json")) {
+          await execa("npm", ["init", "-y"]);
+        } else {
+          task.skip("package.json exists, skipping...");
+        }
+      },
+    },
+    {
+      title: "Install packages",
+      task: async () => {
+        await execa("npm", ["i", "-D", ...config.packages.dev]);
+        await execa("npm", ["i", ...config.packages.dep]);
+      },
+    },
+    {
+      title: "Copy files",
+      task: async () =>
+        fs.cpSync(path.join(__dirname, "files"), "./", { recursive: true }),
+    },
+    {
+      title: "Modify package.json",
+      task: async () => {
+        const package_json = JSON.parse(
+          fs.readFileSync("package.json", "utf-8")
+        );
+
+        package_json.main = "dist/app.js";
+        package_json.scripts.build = "tsc";
+        package_json.scripts.dev = "ts-node src/app.ts";
+        package_json.scripts.start = "node dist/app.js";
+
+        fs.writeFileSync("package.json", JSON.stringify(package_json, null, 2));
+      },
+    },
+    {
+      title: "Install Prisma",
+      enabled: () => resp.prisma,
+      task: async () => {
+        await execa("npm", ["i", "-D", "prisma"]);
+        await execa("npx", [
+          "prisma",
+          "init",
+          "--datasource-provider",
+          "sqlite",
+        ]);
+
+        fs.cpSync(path.join(__dirname, "files_options/prisma"), "./", {
+          recursive: true,
+        });
+      },
+    },
+    {
+      title: "Rename files",
+      task: async () => {
+        fs.renameSync("ts-prod-ignore", ".gitignore");
+      },
+    },
+  ]);
+
+  tasks
+    .run()
+    .then(() => console.log("Done!"))
+    .catch(console.error);
 }
 
-//install packages
-console.log("Install packages");
-spawn.sync("npm", ["i", "-D", ...config.packages.dev], { stdio: "inherit" });
-spawn.sync("npm", ["i", ...config.packages.dep], { stdio: "inherit" });
-console.log("Packages installed");
-
-//copy files
-
-console.log("Copy files");
-fs.cpSync(path.join(__dirname, "files"), "./", { recursive: true });
-console.log("Files copied");
-
-//modify package.json
-
-console.log("Modify package.json");
-
-const package = JSON.parse(fs.readFileSync("package.json", "utf-8"));
-
-package.main = "dist/app.js";
-package.scripts.build = "tsc";
-package.scripts.dev = "ts-node src/app.ts";
-package.scripts.start = "node dist/app.js";
-
-fs.writeFileSync("package.json", JSON.stringify(package, null, 2));
-
-console.log("package.json modified");
-console.log("Done");
+run();
