@@ -4,7 +4,7 @@ const config = {
   packages: {
     dev: [
       "@types/node",
-      "ts-node",
+      "tsc-watch",
       "typescript",
       "eslint",
       "@typescript-eslint/parser",
@@ -14,10 +14,12 @@ const config = {
   },
 };
 
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 const { prompt } = require("enquirer");
 const Listr = require("listr");
+const { glob } = require("glob");
+const Handlebars = require("handlebars");
 
 async function run() {
   const { execa } = await import("execa");
@@ -49,9 +51,23 @@ async function run() {
       },
     },
     {
-      title: "Copy files",
-      task: async () =>
-        fs.cpSync(path.join(__dirname, "files"), "./", { recursive: true }),
+      title: "Generate files",
+      task: async () => {
+        const files = await glob("**/*", {
+          cwd: path.join(__dirname, "files"),
+          nodir: true,
+        });
+        for (const file of files) {
+          const content = fs.readFileSync(
+            path.join(__dirname, "files", file),
+            "utf-8"
+          );
+          await fs.outputFile(
+            path.join("./", file),
+            Handlebars.compile(content)(resp)
+          );
+        }
+      },
     },
     {
       title: "Modify package.json",
@@ -62,10 +78,16 @@ async function run() {
 
         package_json.main = "dist/app.js";
         package_json.scripts.build = "tsc";
-        package_json.scripts.dev = "ts-node src/app.ts";
+        package_json.scripts.dev = 'tsc-watch --onSuccess "node ./dist/app.js"';
         package_json.scripts.start = "node dist/app.js";
 
         fs.writeFileSync("package.json", JSON.stringify(package_json, null, 2));
+      },
+    },
+    {
+      title: "Rename files",
+      task: async () => {
+        fs.renameSync("ts-prod-ignore", ".gitignore");
       },
     },
     {
@@ -83,12 +105,6 @@ async function run() {
         fs.cpSync(path.join(__dirname, "files_options/prisma"), "./", {
           recursive: true,
         });
-      },
-    },
-    {
-      title: "Rename files",
-      task: async () => {
-        fs.renameSync("ts-prod-ignore", ".gitignore");
       },
     },
   ]);
