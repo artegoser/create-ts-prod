@@ -10,7 +10,7 @@ const config = {
       "@typescript-eslint/parser",
       "@typescript-eslint/eslint-plugin",
     ],
-    dep: ["dotenv"],
+    dep: [],
   },
 };
 
@@ -29,6 +29,11 @@ async function run() {
       type: "confirm",
       name: "prisma",
       message: "Do you want to install Prisma?",
+    },
+    {
+      type: "confirm",
+      name: "dotenv",
+      message: "Do you want to install dotenv?",
     },
   ]);
 
@@ -56,6 +61,7 @@ async function run() {
         const files = await glob("**/*", {
           cwd: path.join(__dirname, "files"),
           nodir: true,
+          ignore: [resp.dotenv ? "./config/**" : ""],
         });
         for (const file of files) {
           const content = fs.readFileSync(
@@ -101,10 +107,13 @@ async function run() {
           "--datasource-provider",
           "sqlite",
         ]);
-
-        fs.cpSync(path.join(__dirname, "files_options/prisma"), "./", {
-          recursive: true,
-        });
+      },
+    },
+    {
+      title: "Install Dotenv",
+      enabled: () => resp.dotenv,
+      task: async () => {
+        await execa("npm", ["i", "dotenv"]);
       },
     },
   ]);
