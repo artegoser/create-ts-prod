@@ -61,7 +61,7 @@ async function run() {
         const files = await glob("**/*", {
           cwd: path.join(__dirname, "files"),
           nodir: true,
-          ignore: [resp.dotenv ? "./config/**" : ""],
+          ignore: [resp.dotenv ? "./src/config/**" : ""],
         });
         for (const file of files) {
           const content = fs.readFileSync(
