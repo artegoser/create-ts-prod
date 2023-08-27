@@ -16,35 +16,38 @@ const config = {
 
 const fs = require("fs-extra");
 const path = require("path");
-const { prompt } = require("enquirer");
-const Listr = require("listr");
 const { glob } = require("glob");
 const Handlebars = require("handlebars");
+const p = require("@clack/prompts");
+const runTasks = require("./runTasks");
 
 async function run() {
   const { execa } = await import("execa");
 
-  const resp = await prompt([
-    {
-      type: "confirm",
-      name: "prisma",
-      message: "Do you want to install Prisma?",
-    },
-    {
-      type: "confirm",
-      name: "dotenv",
-      message: "Do you want to install dotenv?",
-    },
-  ]);
+  p.intro("Welcome to create-ts-prod");
 
-  let tasks = new Listr([
+  const resp = await p.group(
+    {
+      prisma: () => p.confirm({ message: "Do you want to install Prisma?" }),
+      dotenv: () => p.confirm({ message: "Do you want to install dotenv?" }),
+    },
+    {
+      onCancel: () => {
+        p.cancel("Operation cancelled.");
+        process.exit(0);
+      },
+    },
+  );
+
+  await runTasks([
     {
       title: "Check if package.json exists",
-      task: async (_, task) => {
+      task: async () => {
         if (!fs.existsSync("package.json")) {
           await execa("npm", ["init", "-y"]);
+          return "package.jspn created";
         } else {
-          task.skip("package.json exists, skipping...");
+          return "package.json exists, skipping...";
         }
       },
     },
@@ -53,6 +56,8 @@ async function run() {
       task: async () => {
         await execa("npm", ["i", "-D", ...config.packages.dev]);
         await execa("npm", ["i", ...config.packages.dep]);
+
+        return "packages installed";
       },
     },
     {
@@ -61,25 +66,27 @@ async function run() {
         const files = await glob("**/*", {
           cwd: path.join(__dirname, "files"),
           nodir: true,
-          ignore: [resp.dotenv ? "./src/config/**" : ""],
+          ignore: !resp.dotenv ? ["src/config/**"] : [],
         });
         for (const file of files) {
           const content = fs.readFileSync(
             path.join(__dirname, "files", file),
-            "utf-8"
+            "utf-8",
           );
           await fs.outputFile(
             path.join("./", file),
-            Handlebars.compile(content)(resp)
+            Handlebars.compile(content)(resp),
           );
         }
+
+        return "files generated";
       },
     },
     {
       title: "Modify package.json",
       task: async () => {
         const package_json = JSON.parse(
-          fs.readFileSync("package.json", "utf-8")
+          fs.readFileSync("package.json", "utf-8"),
         );
 
         package_json.main = "dist/app.js";
@@ -88,17 +95,21 @@ async function run() {
         package_json.scripts.start = "node dist/app.js";
 
         fs.writeFileSync("package.json", JSON.stringify(package_json, null, 2));
+
+        return "package.json modified";
       },
     },
     {
       title: "Rename files",
       task: async () => {
         fs.renameSync("ts-prod-ignore", ".gitignore");
+
+        return "files renamed";
       },
     },
     {
       title: "Install Prisma",
-      enabled: () => resp.prisma,
+      enabled: resp.prisma,
       task: async () => {
         await execa("npm", ["i", "-D", "prisma"]);
         await execa("npx", [
@@ -107,21 +118,22 @@ async function run() {
           "--datasource-provider",
           "sqlite",
         ]);
+
+        return "prisma installed";
       },
     },
     {
       title: "Install Dotenv",
-      enabled: () => resp.dotenv,
+      enabled: resp.dotenv,
       task: async () => {
         await execa("npm", ["i", "dotenv"]);
+
+        return "dotenv installed";
       },
     },
   ]);
 
-  tasks
-    .run()
-    .then(() => console.log("Done!"))
-    .catch(console.error);
+  p.outro("All done!");
 }
 
 run();
