@@ -45,7 +45,7 @@ async function run() {
       task: async () => {
         if (!fs.existsSync("package.json")) {
           await execa("npm", ["init", "-y"]);
-          return "package.jspn created";
+          return "package.json created";
         } else {
           return "package.json exists, skipping...";
         }

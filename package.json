@@ -1,6 +1,6 @@
 {
   "name": "@artegoser/create-ts-prod",
-  "version": "1.5.1",
+  "version": "1.5.2",
   "description": "Boilerplate for TypeScript projects",
   "main": "index.js",
   "bin": {
